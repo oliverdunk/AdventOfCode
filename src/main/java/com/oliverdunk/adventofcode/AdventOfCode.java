@@ -24,7 +24,8 @@ public class AdventOfCode {
     };
 
     _2016 = new Challenge[] {
-            new _2016One(), new _2016Two(), new _2015Three(), new _2015Four()
+            new _2016One(), new _2016Two(), new _2015Three(), new _2015Four(), new _2016Five(),
+            new _2016Six(), new _2016Seven()
     };
 
     //Display user prompt to select challenge
@@ -40,15 +41,25 @@ public class AdventOfCode {
         if (challengeInstance.getDay() != challenge) continue;
         System.out.println();
 
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         String result = challengeInstance.puzzleOne();
-        long took = (System.currentTimeMillis() - start);
-        System.out.printf("Part One: %s (took %sms).\n", result, took);
+        String units = "ns";
+        long took = (System.nanoTime() - start);
+        if (took / 1000000 > 1) {
+          took = took / 1000000;
+          units = "ms";
+        }
+        System.out.printf("Part One: %s (took %s).\n", result, took + units);
 
-        start = System.currentTimeMillis();
+        start = System.nanoTime();
         result = challengeInstance.puzzleTwo();
-        took = (System.currentTimeMillis() - start);
-        System.out.printf("Part Two: %s (took %sms).\n", result, took);
+        units = "ns";
+        took = (System.nanoTime() - start);
+        if (took / 1000000 > 1) {
+          took = took / 1000000;
+          units = "ms";
+        }
+        System.out.printf("Part Two: %s (took %s).\n", result, took + units);
 
         return;
       }
