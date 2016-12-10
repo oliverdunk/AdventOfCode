@@ -25,7 +25,7 @@ public class AdventOfCode {
 
     _2016 = new Challenge[] {
             new _2016One(), new _2016Two(), new _2015Three(), new _2015Four(), new _2016Five(),
-            new _2016Six(), new _2016Seven(), new _2016Eight()
+            new _2016Six(), new _2016Seven(), new _2016Eight(), new _2016Nine()
     };
 
     //Display user prompt to select challenge
