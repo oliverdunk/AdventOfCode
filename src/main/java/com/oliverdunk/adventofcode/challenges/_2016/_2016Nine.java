@@ -3,9 +3,13 @@ package com.oliverdunk.adventofcode.challenges._2016;
 import com.oliverdunk.adventofcode.challenges.Challenge;
 import com.oliverdunk.adventofcode.utils.Utils;
 
+import java.math.BigInteger;
+import java.util.HashMap;
+
 public class _2016Nine extends Challenge {
 
   private String compressedFile;
+  private HashMap<String, BigInteger> lengthCache = new HashMap<>();
 
   public _2016Nine() {
     super(9);
@@ -13,16 +17,24 @@ public class _2016Nine extends Challenge {
   }
 
   public String puzzleOne() {
-    return decompress(compressedFile, false).length() + "";
+    lengthCache.clear();
+    return getLength(compressedFile, false).toString();
   }
 
   public String puzzleTwo() {
-    return decompress(compressedFile, true).length() + "";
+    lengthCache.clear();
+    return getLength(compressedFile, true).toString();
   }
 
-  private String decompress(String  compressed, boolean deep) {
+  private BigInteger getLength(String compressed, boolean deep) {
+
+    //Respond from the cache if already calculated
+    if (lengthCache.containsKey(compressed)) {
+      return lengthCache.get(compressed);
+    }
+
     char[] chars = compressed.toCharArray();
-    StringBuilder decompressed = new StringBuilder();
+    BigInteger length = BigInteger.ZERO;
 
     boolean insideMarker = false;
     int leftToCollect = 0;
@@ -34,7 +46,7 @@ public class _2016Nine extends Challenge {
     for (int pointer = 0; pointer < chars.length; pointer++) {
       if (insideMarker == false && chars[pointer] != '(' && leftToCollect == 0) {
         //We're not in a marker, we're not entering a marker, and we're not collecting text
-        decompressed.append(chars[pointer]);
+        length = length.add(BigInteger.ONE);
       } else if (leftToCollect > 0 && !insideMarker) {
         //We're currently collecting characters to fulfil a marker's dreams
         markerRefersTo.append(chars[pointer]);
@@ -42,10 +54,11 @@ public class _2016Nine extends Challenge {
         if (leftToCollect == 0) {
           //Let's do what the marker told us to
           for (int i = 0; i < timesToRepeat; i++) {
-            decompressed.append(deep
-                    ? decompress(markerRefersTo.toString(), true)
-                    : markerRefersTo
-            );
+            if (deep) {
+              length = length.add(getLength(markerRefersTo.toString(), true));
+            } else {
+              length = length.add(BigInteger.valueOf(markerRefersTo.length()));
+            }
           }
           markerRefersTo = new StringBuilder();
         }
@@ -74,7 +87,8 @@ public class _2016Nine extends Challenge {
       }
     }
 
-    return decompressed.toString();
+    lengthCache.put(compressed, length);
+    return length;
   }
 
 }
