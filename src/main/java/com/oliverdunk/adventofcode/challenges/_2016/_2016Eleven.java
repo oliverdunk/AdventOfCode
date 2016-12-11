@@ -2,7 +2,9 @@ package com.oliverdunk.adventofcode.challenges._2016;
 
 import com.oliverdunk.adventofcode.challenges.Challenge;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -22,7 +24,7 @@ public class _2016Eleven extends Challenge {
 
   public String puzzleOne() {
     loadInput();
-    return getFastestPath(loadInput(), 1, 0) + "";
+    return getFastestPath(loadInput(), 1, new ArrayList<>()) + "";
   }
 
   public String puzzleTwo() {
@@ -47,7 +49,7 @@ public class _2016Eleven extends Challenge {
   private HashMap<List<String>[], Integer> cache = new HashMap<>();
   private HashMap<List<String>[], Integer> beenThereDoneThat = new HashMap<>();
 
-  private int getFastestPath(List<String>[] floors, int floor, int steps) {
+  private int getFastestPath(List<String>[] floors, int floor, ArrayList<List<String>[]> steps) {
 
     //This basically replies with the largest possible path value (so that it's ignored)
     //if we've already got to this state (to prevent infinite loops)
@@ -56,10 +58,10 @@ public class _2016Eleven extends Challenge {
       for (int i = 0; i < deJaVu.length; i++) {
         if (!deJaVu[i].equals(floors[i])) matches = false;
       }
-      if (matches && beenThereDoneThat.get(deJaVu) < steps) return Integer.MAX_VALUE;
+      if (matches && beenThereDoneThat.get(deJaVu) < steps.size()) return Integer.MAX_VALUE;
     }
 
-    beenThereDoneThat.put(floors, steps);
+    beenThereDoneThat.put(floors, steps.size());
 
     if (fromCache(floors) != -1) {
       return fromCache(floors);
@@ -68,31 +70,48 @@ public class _2016Eleven extends Challenge {
     floors = cloneFloors(floors);
 
     if ((floors[0].isEmpty() && floors[1].isEmpty() && floors[2].isEmpty())) {
-      return steps; //We'll cap the number of iterations to prevent infinite loops
+      System.out.println("START OF SOLUTION");
+      for (List<String>[] floorState : steps) {
+        System.out.println(Arrays.toString(floorState));
+      }
+      System.out.println("END OF SOLUTION");
+      return steps.size();
     }
 
     int shortestPath = Integer.MAX_VALUE;
-    List<String> moving = new ArrayList<>();
 
-    for (String item : floors[floor - 1]) {
-      moving.clear();
-      moving.add(item);
-      int took = fastestWayToMove(floors, floor, moving, steps);
+    for (List<String> group : getPotentialLiftContents(floors[floor - 1])) {
+      int took = fastestWayToMove(floors, floor, group, steps);
       if (took < shortestPath) shortestPath = took;
-
-      //Try moving all other items with this item
-      for (String moveWith : floors[floor - 1]) {
-        if (item.equalsIgnoreCase(moveWith)) continue;
-        moving.clear();
-        moving.add(item);
-        moving.add(moveWith);
-        took = fastestWayToMove(floors, floor, moving, steps);
-        if (took < shortestPath) shortestPath = took;
-      }
     }
 
     cache.put(floors, shortestPath);
     return shortestPath;
+  }
+
+  private List<List<String>> getPotentialLiftContents(List<String> floor) {
+    List<List<String>> potentialContents = new ArrayList<>();
+    List<String> alreadyHad = new ArrayList<>();
+
+    for (String item : floor) {
+      List<String> singleItem = new ArrayList<>();
+      singleItem.add(item);
+      potentialContents.add(singleItem);
+      alreadyHad.add(item);
+
+      //Find potential combinations which could go with this item
+      for (String moveWith : floor) {
+        if (item.equals(moveWith)) continue;
+        if (alreadyHad.contains(moveWith)) continue;
+        alreadyHad.add(item);
+        List<String> group = new ArrayList<>();
+        group.add(item);
+        group.add(moveWith);
+        potentialContents.add(group);
+      }
+    }
+
+    return potentialContents;
   }
 
   private int fromCache(List<String>[] floors) {
@@ -106,7 +125,7 @@ public class _2016Eleven extends Challenge {
     return -1;
   }
 
-  private int fastestWayToMove(List<String>[] floors, int floor, List<String> moving, int steps) {
+  private int fastestWayToMove(List<String>[] floors, int floor, List<String> moving, ArrayList<List<String>[]> steps) {
     int shortestPath = Integer.MAX_VALUE;
 
     for (int direction = -1; direction < 2; direction++) {
@@ -119,7 +138,9 @@ public class _2016Eleven extends Challenge {
       for (String item : moving) floorState[floor - 1 + direction].add(item);
 
       if (!stateIsAllowed(floorState)) continue;
-      int took = getFastestPath(cloneFloors(floorState), floor + direction, steps + 1);
+      steps = (ArrayList<List<String>[]>) steps.clone();
+      steps.add(floorState);
+      int took = getFastestPath(cloneFloors(floorState), floor + direction, steps);
       if (took < shortestPath) shortestPath = took;
     }
 
