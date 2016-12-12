@@ -1,95 +1,154 @@
 package com.oliverdunk.adventofcode.challenges._2016;
 
 import com.oliverdunk.adventofcode.challenges.Challenge;
+import com.oliverdunk.adventofcode.utils.Utils;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-/**
- * To simplify this puzzle, I used my own terms:
- * Generators are owners of precious materials (O)
- * Microchips are the precious materials (G)
- *
- * A precious material can't be on its own without its owner - the owner will take it!
- * An owner is safe alone.
- */
 public class _2016Eleven extends Challenge {
+
+  private List<String> input;
+  private HashSet<String> knownHashes = new HashSet<>();
+  private LinkedList<State> queue = new LinkedList<>();
 
   public _2016Eleven() {
     super(11);
+    input = Utils.getInput(2016, 11);
   }
 
   public String puzzleOne() {
-    loadInput();
-    return getFastestPath(loadInput(), 1, new ArrayList<>()) + "";
+    return getShortestPath(false).steps + "";
   }
 
   public String puzzleTwo() {
-    return null;
+    return getShortestPath(true).steps + "";
   }
 
-  private List<String>[] loadInput() {
-    ArrayList<String>[] floors = new ArrayList[4];
+  private State getShortestPath(boolean partTwo) {
+    queue.add(new State(partTwo));
+    while (queue.size() > 0) {
+      State current = queue.pop();
+      if (current.isSolved()) return current;
 
-    floors[0] = new ArrayList<>();
-    floors[1] = new ArrayList<>();
-    floors[2] = new ArrayList<>();
-    floors[3] = new ArrayList<>();
+      for (List<String> couldMove : couldMove(current.floors[current.currentFloor - 1])) {
+        for (int direction = -1; direction < 2; direction += 2) {
+          if (direction == -1 && current.currentFloor == 1) continue;
+          if (direction == 1 && current.currentFloor == 4) continue;
 
-    floors[0].add("G1");
-    floors[0].add("G2");
-    floors[1].add("O2");
-    floors[2].add("O1");
-    return floors;
-  }
+          //Calculate new state
+          State newState = current.clone();
+          for (String item : couldMove) newState.floors[newState.currentFloor - 1].remove(item);
+          newState.currentFloor += direction;
+          for (String item : couldMove) newState.floors[newState.currentFloor - 1].add(item);
 
-  private HashMap<List<String>[], Integer> cache = new HashMap<>();
-  private HashMap<List<String>[], Integer> beenThereDoneThat = new HashMap<>();
-
-  private int getFastestPath(List<String>[] floors, int floor, ArrayList<List<String>[]> steps) {
-
-    //This basically replies with the largest possible path value (so that it's ignored)
-    //if we've already got to this state (to prevent infinite loops)
-    for (List<String>[] deJaVu : beenThereDoneThat.keySet()) {
-      boolean matches = true;
-      for (int i = 0; i < deJaVu.length; i++) {
-        if (!deJaVu[i].equals(floors[i])) matches = false;
+          //Decide if it's worth keeping around
+          if (!stateAllowed(newState)) continue;
+          if (knownHashes.contains(newState.getHash())) continue;
+          knownHashes.add(newState.getHash());
+          queue.add(newState);
+        }
       }
-      if (matches && beenThereDoneThat.get(deJaVu) < steps.size()) return Integer.MAX_VALUE;
     }
-
-    beenThereDoneThat.put(floors, steps.size());
-
-    if (fromCache(floors) != -1) {
-      return fromCache(floors);
-    }
-
-    floors = cloneFloors(floors);
-
-    if ((floors[0].isEmpty() && floors[1].isEmpty() && floors[2].isEmpty())) {
-      System.out.println("START OF SOLUTION");
-      for (List<String>[] floorState : steps) {
-        System.out.println(Arrays.toString(floorState));
-      }
-      System.out.println("END OF SOLUTION");
-      return steps.size();
-    }
-
-    int shortestPath = Integer.MAX_VALUE;
-
-    for (List<String> group : getPotentialLiftContents(floors[floor - 1])) {
-      int took = fastestWayToMove(floors, floor, group, steps);
-      if (took < shortestPath) shortestPath = took;
-    }
-
-    cache.put(floors, shortestPath);
-    return shortestPath;
+    return null; //If something goes wrong and we don't end up with a solution
   }
 
-  private List<List<String>> getPotentialLiftContents(List<String> floor) {
+  private class State {
+
+    private ArrayList<String>[] floors;
+    private int currentFloor = 1;
+    private int steps = 0;
+
+    public State(boolean partTwo) {
+      //Default constructor to make a blank state with input
+      floors = new ArrayList[4];
+      floors[0] = new ArrayList<>();
+      floors[1] = new ArrayList<>();
+      floors[2] = new ArrayList<>();
+      floors[3] = new ArrayList<>();
+      loadInput();
+
+      if (partTwo) {
+        floors[0].add("ELG");
+        floors[0].add("ELM");
+        floors[0].add("DIG");
+        floors[0].add("DIM");
+      }
+    }
+
+    public State(ArrayList<String>[] floors, int currentFloor, int steps) {
+      this.floors = cloneFloors(floors);
+      this.currentFloor = currentFloor;
+      this.steps = steps + 1;
+    }
+
+    private void loadInput() {
+      for (int floor = 0; floor < input.size(); floor++) {
+        String contents = input.get(floor);
+        List<String> floorState = floors[floor];
+
+        Matcher items = Pattern.compile("a ([a-zA-Z-]+[a-zA-Z]+) (\\w+)").matcher(contents);
+        while (items.find()) {
+          String type = items.group(2).equals("generator") ? "G" : "M";
+          String material = (items.group(1).split("-")[0].substring(0, 2) + "").toUpperCase();
+          floorState.add(material + type);
+        }
+      }
+    }
+
+    public State clone() {
+      return new State(floors, currentFloor, steps);
+    }
+
+    public String getHash() {
+      StringBuilder hash = new StringBuilder();
+      for (int i = 0; i < floors.length; i++) {
+        int generators = 0, microchips = 0;
+        for (String item : floors[i]) {
+          if (item.contains("M")) microchips++;
+          else generators++;
+        }
+        hash.append(String.format("%s[%s:%s]-%s", i, generators, microchips, currentFloor));
+      }
+      return hash.toString();
+    }
+
+    private boolean isSolved() {
+      return floors[0].isEmpty() && floors[1].isEmpty() && floors[2].isEmpty();
+    }
+
+  }
+
+  private ArrayList<String>[] cloneFloors(ArrayList<String>[] floors) {
+    ArrayList<String>[] cloned = new ArrayList[4];
+    for (int i = 0; i < 4; i++)
+      cloned[i] = (ArrayList<String>) floors[i].clone();
+    return cloned;
+  }
+
+  private String getCorresponding(String item) {
+    if (item.contains("M")) return item.replace("M", "G");
+    else return item.replace("G", "M");
+  }
+
+  private boolean stateAllowed(State stateToCheck) {
+    for (List<String> floor : stateToCheck.floors) {
+      //See if this floor is permitted, or if a microchip will be fried
+      int generators = 0;
+      for (String item : floor) if (item.contains("G")) generators++;
+      for (String item : floor)
+        if (item.contains("M") && generators >= 1 && !floor.contains(getCorresponding(item)))
+          return false;
+    }
+    return true;
+  }
+
+  private List<List<String>> couldMove(List<String> floor) {
     List<List<String>> potentialContents = new ArrayList<>();
     List<String> alreadyHad = new ArrayList<>();
 
@@ -112,74 +171,6 @@ public class _2016Eleven extends Challenge {
     }
 
     return potentialContents;
-  }
-
-  private int fromCache(List<String>[] floors) {
-    for (List<String>[] item : cache.keySet()) {
-      boolean matches = true;
-      for (int floor = 0; floor < floors.length; floor ++) {
-        if (!item[floor].equals(floors[floor])) matches = false;
-      }
-      if (matches) return cache.get(item);
-    }
-    return -1;
-  }
-
-  private int fastestWayToMove(List<String>[] floors, int floor, List<String> moving, ArrayList<List<String>[]> steps) {
-    int shortestPath = Integer.MAX_VALUE;
-
-    for (int direction = -1; direction < 2; direction++) {
-      if (direction == -1 && floor == 1) continue;
-      if (direction == 1 && floor == 4) continue;
-      if (direction == 0) continue;
-
-      List<String>[] floorState = cloneFloors(floors);
-      for (String item : moving) floorState[floor - 1].remove(item);
-      for (String item : moving) floorState[floor - 1 + direction].add(item);
-
-      if (!stateIsAllowed(floorState)) continue;
-      steps = (ArrayList<List<String>[]>) steps.clone();
-      steps.add(floorState);
-      int took = getFastestPath(cloneFloors(floorState), floor + direction, steps);
-      if (took < shortestPath) shortestPath = took;
-    }
-
-    return shortestPath;
-  }
-
-  private boolean stateIsAllowed(List<String>[] floors) {
-    for (List<String> floor : floors) {
-      List<String> owners = new ArrayList<>();
-      List<String> minerals = new ArrayList<>();
-      for (String item : floor) {
-        if (item.charAt(0) == 'O') owners.add(item);
-        else minerals.add(item);
-      }
-      for (String mineral : minerals) {
-        if (!owners.contains(getCorresponding(mineral)) && owners.size() > 0) {
-          //There are other owners on this floor, and this mineral doesn't have one
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  private String getCorresponding(String item) {
-    if (item.charAt(0) == 'G') {
-      return item.replace('G', 'O');
-    } else {
-      return item.replace('O', 'G');
-    }
-  }
-
-  private List<String>[] cloneFloors(List<String>[] floors) {
-    ArrayList<String>[] cloned = new ArrayList[4];
-    cloned[0] = new ArrayList<>(floors[0]);
-    cloned[1] = new ArrayList<>(floors[1]);
-    cloned[2] = new ArrayList<>(floors[2]);
-    cloned[3] = new ArrayList<>(floors[3]);
-    return cloned;
   }
 
 }
