@@ -28,7 +28,7 @@ public class AdventOfCode {
             new _2016Six(), new _2016Seven(), new _2016Eight(), new _2016Nine(), new _2016Ten(),
             new _2016Eleven(), new _2016Twelve(), new _2016Thirteen(), new _2016Fourteen(),
             new _2016Fifteen(), new _2016Sixteen(), new _2016Seventeen(), new _2016Eighteen(),
-            new _2016Nineteen()
+            new _2016Nineteen(), new _2016Twenty()
     };
 
     //Display user prompt to select challenge
